@@ -1,196 +1,199 @@
-# --- Nama File: app.py ---
-# Ini adalah "kulit" UI (Streamlit) kita.
-
 import streamlit as st
-from mesin_perpus import Perpustakaan, Anggota # Impor "mesin" kita
+from mesin_perpus import Perpustakaan, Anggota
+import time
 
-# --- VIBE "AJAIB" STREAMLIT: Session State ---
-# Web bersifat "lupa". Streamlit 'st.session_state' adalah "memori"
-# untuk mengingat objek perpustakaan dan siapa yang login.
+# --- KONFIGURASI HALAMAN (Modern Vibe) ---
+st.set_page_config(
+    page_title="Perpustakaan Digital",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# --- CSS HACK (Untuk mempercantik tampilan) ---
+st.markdown("""
+<style>
+    /* Mengubah warna background header */
+    .stAppHeader {background-color: transparent;}
+    
+    /* Membuat kartu buku lebih cantik */
+    div[data-testid="stExpander"] {
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Judul Besar */
+    h1 {
+        font-family: 'Helvetica Neue', sans-serif;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- INISIALISASI MESIN ---
 if 'perpus' not in st.session_state:
-    # 1. Inisialisasi "Mesin" kita
-    print("--- MEMBUAT OBJEK PERPUSTAKAAN BARU ---")
     st.session_state.perpus = Perpustakaan()
-    
-    # 2. Bootstrap Admin (Sama seperti Vibe 7)
-    admin_awal = Anggota(nisn="admin", tanggal_lahir="adminpass", nama="Admin Perpus", role="ADMIN")
-    st.session_state.perpus.daftar_anggota.append(admin_awal)
+    # Data Dummy Awal
+    p = st.session_state.perpus
+    p.daftar_anggota.append(Anggota("admin", "adminpass", "Kepala Pustaka", "ADMIN"))
+    p.tambah_buku_baru("Laskar Pelangi", "Andrea Hirata", "Bentang", 2005, "FISIK", 5, "A1-Novel")
+    p.tambah_buku_baru("Bumi Manusia", "Pramoedya A. Toer", "Hasta Mitra", 1980, "FISIK", 2, "A1-Novel")
+    p.tambah_buku_baru("Deep Learning", "F. Chollet", "Manning", 2021, "DIGITAL", 0)
+    p.tambah_buku_baru("Atomic Habits", "James Clear", "Penguin", 2018, "FISIK", 10, "B2-SelfHelp")
+    p.tambah_buku_baru("Filosofi Teras", "Henry Manampiring", "Kompas", 2019, "FISIK", 7, "B2-SelfHelp")
 
-    # 3. Bootstrap beberapa buku (biar tidak kosong)
-    st.session_state.perpus.tambah_buku_baru("Laskar Pelangi", "Andrea Hirata", "Bentang", 2005, "FISIK", 5, "A1")
-    st.session_state.perpus.tambah_buku_baru("Deep Learning", "F. Chollet", "Manning", 2021, "DIGITAL", 0)
-    
-# --- END VIBE "AJAIB" ---
-
-
-# --- Mulai UI ---
-st.set_page_config(layout="wide")
-st.title("📚 Aplikasi Perpustakaan Sekolah (Vibe 7)")
-
-# Kita ambil "mesin" dari memori
 perpus = st.session_state.perpus
 pengguna_login = perpus.pengguna_aktif
 
 # =================================================================
-# TAMPILAN 1: HALAMAN LOGIN (Jika belum login)
+# HALAMAN LOGIN (Clean & Minimalis)
 # =================================================================
 if not pengguna_login:
-    st.header("Silakan Login")
-    with st.form("form_login"):
-        nisn = st.text_input("Username (NISN)")
-        # Vibe check: Ganti 'type' jadi 'password' agar jadi titik-titik
-        tgl_lahir = st.text_input("Password (Tanggal Lahir, cth: 01012010)", type="password")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<br><br>", unsafe_allow_html=True) # Spacer
+        st.title("🎓 Univ. Library Portal")
+        st.write("Silakan login dengan akun akademik Anda.")
         
-        tombol_login = st.form_submit_button("Login")
-        
-        if tombol_login:
-            sukses, pesan = perpus.login(nisn, tgl_lahir)
-            if sukses:
-                st.success(pesan)
-                st.rerun() # "Vibe Ajaib": Muat ulang halaman untuk masuk ke dashboard
-            else:
-                st.error(pesan)
-
-# =================================================================
-# TAMPILAN 2: DASHBOARD (Jika SUDAH login)
-# =================================================================
-else:
-    # --- Sidebar ---
-    with st.sidebar:
-        st.subheader(f"Selamat Datang, {pengguna_login.nama}!")
-        st.write(f"**Role:** {pengguna_login.role}")
-        
-        if st.button("Logout"):
-            sukses, pesan = perpus.logout()
-            st.success(pesan)
-            st.rerun() # Muat ulang halaman untuk kembali ke login
-
-        st.divider()
-        st.subheader("Buku Pinjaman Saya")
-        pinjaman_saya = pengguna_login.tampil_buku_pinjaman()
-        for item in pinjaman_saya:
-            st.markdown(item)
-
-    # --- Halaman Utama (Pakai Tabs) ---
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📖 Daftar Buku & Pinjam", 
-        "🔄 Kembalikan Buku", 
-        "--- ADMIN: Tambah Buku ---", 
-        "--- ADMIN: Manajemen Anggota ---"
-    ])
-
-    # --- Tab 1: Daftar Buku & Pinjam ---
-    with tab1:
-        st.header("Daftar Buku & Peminjaman")
-        
-        # Buat 2 kolom
-        col1, col2 = st.columns([3, 2]) # Kolom 1 lebih besar
-        
-        with col1:
-            st.subheader("Semua Buku di Perpustakaan")
-            daftar_buku = perpus.tampil_daftar_buku()
-            if isinstance(daftar_buku[0], str):
-                st.write(daftar_buku[0])
-            else:
-                # Kita buat data lebih rapi untuk ditampilkan
-                data_tampil = []
-                for buku in daftar_buku:
-                    stok_display = "∞" if buku.stok == float('inf') else buku.stok
-                    data_tampil.append({
-                        "Judul": buku.judul,
-                        "Penulis": buku.penulis,
-                        "Tipe": buku.tipe_buku,
-                        "Stok": stok_display,
-                        "Rak": buku.rak_buku,
-                        "ID": buku.id_buku
-                    })
-                st.dataframe(data_tampil, use_container_width=True)
-
-        with col2:
-            st.subheader("Form Peminjaman")
-            with st.form("form_pinjam"):
-                id_buku_pinjam = st.text_input("Masukkan ID Buku yang ingin dipinjam:")
-                tombol_pinjam = st.form_submit_button("Pinjam Buku")
-                
-                if tombol_pinjam:
-                    pesan = perpus.pinjam_buku(id_buku_pinjam)
-                    if "BERHASIL" in pesan:
-                        st.success(pesan)
-                    else:
-                        st.error(pesan)
-
-    # --- Tab 2: Kembalikan Buku ---
-    with tab2:
-        st.header("Pengembalian Buku")
-        with st.form("form_kembali"):
-            id_buku_kembali = st.text_input("Masukkan ID Buku yang ingin dikembalikan:")
-            tombol_kembali = st.form_submit_button("Kembalikan Buku")
+        with st.container(border=True):
+            nisn = st.text_input("🆔 NISN / NIP")
+            tgl_lahir = st.text_input("🔑 Password", type="password")
             
-            if tombol_kembali:
-                pesan = perpus.kembalikan_buku(id_buku_kembali)
-                if "BERHASIL" in pesan:
-                    st.success(pesan)
+            if st.button("Masuk Portal", use_container_width=True, type="primary"):
+                sukses, pesan = perpus.login(nisn, tgl_lahir)
+                if sukses:
+                    st.success("Login berhasil! Mengalihkan...")
+                    time.sleep(1)
+                    st.rerun()
                 else:
                     st.error(pesan)
-                    
-    # --- Tab 3: ADMIN - Tambah Buku ---
-    with tab3:
-        st.header("Admin: Tambah Buku Baru")
-        # Vibe Check: Hanya tampilkan form jika role-nya pas
-        if pengguna_login.role not in ["ADMIN", "GURU"]:
-            st.error("Hanya ADMIN atau GURU yang bisa mengakses menu ini.")
-        else:
-            with st.form("form_tambah_buku"):
-                st.write("Masukkan detail buku baru:")
-                judul = st.text_input("Judul")
-                penulis = st.text_input("Penulis")
-                penerbit = st.text_input("Penerbit")
-                tahun = st.number_input("Tahun Terbit", min_value=1800, max_value=2025, value=2024)
-                tipe = st.selectbox("Tipe Buku", ["FISIK", "DIGITAL"])
-                stok = st.number_input("Stok (Abaikan jika DIGITAL)", min_value=0, value=1)
-                rak = st.text_input("Lokasi Rak (Abaikan jika DIGITAL)")
-                
-                tombol_tambah_buku = st.form_submit_button("Tambah Buku")
-                
-                if tombol_tambah_buku:
-                    pesan = perpus.tambah_buku_baru(judul, penulis, penerbit, tahun, tipe, stok, rak)
-                    if "BERHASIL" in pesan: st.success(pesan)
-                    else: st.error(pesan)
+        
+        st.info("Gunakan akun Demo: **admin** / **adminpass**")
 
-    # --- Tab 4: ADMIN - Manajemen Anggota ---
-    with tab4:
-        st.header("Admin: Manajemen Anggota")
-        if pengguna_login.role not in ["ADMIN", "GURU"]:
-            st.error("Hanya ADMIN atau GURU yang bisa mengakses menu ini.")
+# =================================================================
+# DASHBOARD UTAMA (Modern Layout)
+# =================================================================
+else:
+    # --- SIDEBAR (Profil User) ---
+    with st.sidebar:
+        st.image("https://cdn-icons-png.flaticon.com/512/3135/3135715.png", width=100)
+        st.title(f"Halo, {pengguna_login.nama.split()[0]}!")
+        st.caption(f"Role: {pengguna_login.role} | ID: {pengguna_login.nisn}")
+        
+        st.divider()
+        
+        # Menu Navigasi (Radio Button rasa Tab)
+        menu_pilihan = st.radio("Navigasi", ["🏠 Beranda & Buku", "📚 Pinjaman Saya", "⚙️ Admin Area"])
+        
+        st.divider()
+        if st.button("🚪 Keluar / Logout", use_container_width=True):
+            perpus.logout()
+            st.rerun()
+
+    # --- AREA KONTEN ---
+    
+    # 1. MENU BERANDA (Tampilan Galeri Buku)
+    if menu_pilihan == "🏠 Beranda & Buku":
+        # Hero Section
+        st.markdown("# 🏛️ Perpustakaan Universitas")
+        st.markdown("Temukan referensi terbaik untuk studi Anda hari ini.")
+        
+        # Statistik Ringkas (Modern Metrics)
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total Koleksi", f"{len(perpus.daftar_buku)} Judul")
+        m2.metric("Buku Digital", f"{len([b for b in perpus.daftar_buku if b.tipe_buku == 'DIGITAL'])} E-Book")
+        m3.metric("Status Server", "Online 🟢")
+        
+        st.divider()
+        
+        # Search Bar Besar
+        cari = st.text_input("🔍 Cari judul buku, penulis, atau penerbit...", placeholder="Ketik kata kunci di sini...")
+        
+        st.subheader("Koleksi Pustaka")
+        
+        # Filter Buku berdasarkan pencarian
+        buku_tampil = [b for b in perpus.daftar_buku if cari.lower() in b.judul.lower() or cari.lower() in b.penulis.lower()]
+        
+        if not buku_tampil:
+            st.warning("Buku tidak ditemukan.")
         else:
-            # Punya 2 kolom lagi
-            col_daftar, col_tambah = st.columns(2)
+            # --- GRID LAYOUT (Kunci Tampilan Modern) ---
+            # Kita tampilkan buku dalam grid 3 kolom
+            cols = st.columns(3)
+            for i, buku in enumerate(buku_tampil):
+                with cols[i % 3]: # Logika matematika biar looping ke kolom 1, 2, 3
+                    with st.container(border=True):
+                        # Ikon Buku (Bisa diganti gambar asli nanti)
+                        if buku.tipe_buku == "DIGITAL":
+                            st.markdown("### 📱 " + buku.judul)
+                        else:
+                            st.markdown("### 📕 " + buku.judul)
+                        
+                        st.caption(f"Penulis: {buku.penulis}")
+                        st.caption(f"Penerbit: {buku.penerbit} ({buku.tahun_terbit})")
+                        
+                        # Badge Stok
+                        if buku.tipe_buku == "FISIK":
+                            st.markdown(f"**Stok: {buku.stok}** | Rak: `{buku.rak_buku}`")
+                            if buku.stok > 0:
+                                if st.button("Pinjam Buku", key=f"btn_{buku.id_buku}"):
+                                    pesan = perpus.pinjam_buku(buku.id_buku)
+                                    if "BERHASIL" in pesan: st.toast(pesan, icon="✅")
+                                    else: st.toast(pesan, icon="❌")
+                            else:
+                                st.button("Stok Habis", disabled=True, key=f"btn_{buku.id_buku}")
+                        else:
+                            st.markdown("**✅ Akses Digital Unlimited**")
+                            if st.button("Baca / Pinjam", key=f"btn_{buku.id_buku}"):
+                                pesan = perpus.pinjam_buku(buku.id_buku)
+                                st.toast(pesan, icon="📱")
+
+    # 2. MENU PINJAMAN SAYA
+    elif menu_pilihan == "📚 Pinjaman Saya":
+        st.title("Buku yang Sedang Anda Pinjam")
+        
+        pinjaman = pengguna_login.buku_pinjaman
+        if not pinjaman:
+            st.info("Anda belum meminjam buku apapun. Yuk ke Beranda!")
+        else:
+            for buku in pinjaman:
+                with st.container(border=True):
+                    c1, c2 = st.columns([3, 1])
+                    with c1:
+                        st.subheader(buku.judul)
+                        st.write(f"Tipe: {buku.tipe_buku} | Penulis: {buku.penulis}")
+                    with c2:
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button("Kembalikan", key=f"kembali_{buku.id_buku}", type="primary"):
+                            pesan = perpus.kembalikan_buku(buku.id_buku)
+                            st.success(pesan)
+                            st.rerun()
+
+    # 3. MENU ADMIN AREA
+    elif menu_pilihan == "⚙️ Admin Area":
+        st.title("Portal Administrasi")
+        
+        if pengguna_login.role not in ["ADMIN", "GURU"]:
+            st.error("⛔ Akses Ditolak. Area ini khusus Staff Perpustakaan.")
+        else:
+            tab_add, tab_users = st.tabs(["➕ Tambah Buku", "👥 Data Anggota"])
             
-            with col_daftar:
-                st.subheader("Daftar Anggota Terdaftar")
-                daftar_anggota = perpus.tampil_daftar_anggota()
-                if isinstance(daftar_anggota[0], str):
-                    st.write(daftar_anggota[0])
-                else:
-                    data_anggota = [{
-                        "Nama": ang.nama, 
-                        "NISN": ang.nisn, 
-                        "Role": ang.role
-                    } for ang in daftar_anggota]
-                    st.dataframe(data_anggota, use_container_width=True)
-
-            with col_tambah:
-                st.subheader("Daftar Anggota Baru")
-                with st.form("form_tambah_anggota"):
-                    nama_ang = st.text_input("Nama Lengkap")
-                    nisn_ang = st.text_input("NISN (utk Username)")
-                    tgl_lahir_ang = st.text_input("Tgl Lahir (utk Password, cth: 01012010)")
-                    role_ang = st.selectbox("Role", ["SISWA", "GURU", "ADMIN"])
+            with tab_add:
+                with st.form("form_tambah_modern"):
+                    st.write("Input Data Buku Baru")
+                    c1, c2 = st.columns(2)
+                    judul = c1.text_input("Judul Buku")
+                    penulis = c2.text_input("Penulis")
+                    penerbit = c1.text_input("Penerbit")
+                    tahun = c2.number_input("Tahun", 2000, 2025)
+                    tipe = st.selectbox("Format", ["FISIK", "DIGITAL"])
                     
-                    tombol_tambah_anggota = st.form_submit_button("Daftarkan Anggota")
-                    
-                    if tombol_tambah_anggota:
-                        pesan = perpus.daftar_anggota_baru(nisn_ang, tgl_lahir_ang, nama_ang, role_ang)
-                        if "BERHASIL" in pesan: st.success(pesan)
-                        else: st.error(pesan)
+                    if st.form_submit_button("Simpan ke Database"):
+                        perpus.tambah_buku_baru(judul, penulis, penerbit, tahun, tipe, 5, "Baru")
+                        st.success("Buku berhasil ditambahkan!")
+            
+            with tab_users:
+                st.dataframe([vars(a) for a in perpus.daftar_anggota])
+                st.warning("Fitur edit anggota segera hadir.")
